@@ -1,0 +1,73 @@
+data_source:
+  name: schools
+  description: "California school directory. One row per CDSCode; includes schools and also district / county office entries (those rows have School = NULL). Address, contact, status, charter, virtual and magnet attributes."
+  sql_table: schools
+
+  identifiers:
+    - name: school
+      type: PRIMARY
+      expr: CDSCode
+      description: "14-digit County-District-School code (TEXT, zero-padded)"
+
+  measures:
+    - name: directory_entry_count
+      agg: SUM
+      expr: "1"
+      description: "Number of directory entries (schools plus district/county office entries)"
+
+  dimensions:
+    - name: county
+      type: CATEGORICAL
+      expr: County
+      description: "County name, e.g. Alameda"
+    - name: district
+      type: CATEGORICAL
+      expr: District
+      description: "District name"
+    - name: school_name
+      type: CATEGORICAL
+      expr: School
+      description: "School name; NULL for district or county office entries"
+    - name: city
+      type: CATEGORICAL
+      expr: City
+      description: "City of the physical address"
+    - name: status_type
+      type: CATEGORICAL
+      expr: StatusType
+      description: "Operating status: Active, Closed, Merged, Pending"
+    - name: virtual
+      type: CATEGORICAL
+      expr: Virtual
+      description: "Virtual instruction type: F, P or N"
+    - name: magnet
+      type: CATEGORICAL
+      expr: Magnet
+      description: "Magnet flag: 1 or 0"
+    - name: open_date
+      type: TIME
+      expr: OpenDate
+      description: "Date the school opened"
+      type_params:
+        is_primary: true
+        time_granularity: DAY
+    - name: phone
+      type: CATEGORICAL
+      expr: Phone
+      description: "Phone number"
+    - name: mail_street
+      type: CATEGORICAL
+      expr: MailStreet
+      description: "Unabbreviated mailing street address (MailStrAbr is the abbreviated form)"
+---
+metric:
+  name: directory_entry_count
+  description: Number of entries in the school directory
+  type: measure_proxy
+  type_params:
+    measure: directory_entry_count
+  locked_metadata:
+    tags:
+    - Education
+    - Schools
+    - 'subject_tree: Education/California/Schools'

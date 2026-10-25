@@ -1,0 +1,38 @@
+# secrets
+.env
+.env.*
+conf/agent.yml
+conf/*.bak
+conf/*.bak_*
+conf/eval_agent.yml
+*.bak
+*.bak_*
+
+# local env & caches
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+.DS_Store
+.dataengineer/
+vector/
+
+# data, models, run outputs
+*.duckdb
+*.duckdb.wal
+*.parquet
+*.joblib
+*.pkl
+eval/tmp/
+eval/model/raw/
+eval/model/bench/
+eval/model_bench/prepared/
+eval/kb/subject/
+outputs/
+sample_data/
+
+# not part of this project
+项目介绍/
+SimCT--main/

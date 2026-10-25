@@ -1,0 +1,16 @@
+data_source:
+  name: customers
+  description: "Registered customers with their most frequent invoice country."
+  sql_table: customers
+
+  identifiers:
+    - name: customer
+      type: PRIMARY
+      expr: customer_id
+      description: "Customer id"
+
+  dimensions:
+    - name: customer_country
+      type: CATEGORICAL
+      expr: country
+      description: "Customer's most frequent country"

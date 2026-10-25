@@ -1,0 +1,98 @@
+data_source:
+  name: satscores
+  description: "SAT results for California schools and districts. rtype distinguishes school rows (S) from district aggregate rows (D). Average reading / math / writing scores and the number of test takers scoring 1500+."
+  sql_table: satscores
+
+  identifiers:
+    - name: sat_record
+      type: PRIMARY
+      expr: cds
+      description: "County-District-School code of the SAT record"
+    - name: school
+      type: FOREIGN
+      expr: cds
+      description: "References schools.CDSCode (declared foreign key)"
+
+  measures:
+    - name: test_takers
+      agg: SUM
+      expr: NumTstTakr
+      description: "Number of SAT test takers"
+    - name: test_takers_ge1500
+      agg: SUM
+      expr: NumGE1500
+      description: "Number of test takers whose total SAT score is 1500 or more"
+    - name: avg_math
+      agg: AVERAGE
+      expr: AvgScrMath
+      description: "Average SAT math score"
+    - name: avg_reading
+      agg: AVERAGE
+      expr: AvgScrRead
+      description: "Average SAT reading score"
+    - name: avg_writing
+      agg: AVERAGE
+      expr: AvgScrWrite
+      description: "Average SAT writing score"
+    - name: sat_total_score
+      agg: AVERAGE
+      expr: "AvgScrRead + AvgScrMath + AvgScrWrite"
+      description: "SAT total score = reading + math + writing averages"
+    - name: sat_excellence_rate
+      agg: AVERAGE
+      expr: "CAST(NumGE1500 AS REAL) / NumTstTakr"
+      description: "Per-record SAT excellence rate = NumGE1500 / NumTstTakr"
+
+  dimensions:
+    - name: record_type
+      type: CATEGORICAL
+      expr: rtype
+      description: "S = school record, D = district aggregate"
+    - name: school_name
+      type: CATEGORICAL
+      expr: sname
+      description: "School name (NULL for district rows)"
+    - name: district_name
+      type: CATEGORICAL
+      expr: dname
+      description: "District name"
+    - name: county_name
+      type: CATEGORICAL
+      expr: cname
+      description: "County name"
+---
+metric:
+  name: test_takers
+  description: Number of SAT test takers
+  type: measure_proxy
+  type_params:
+    measure: test_takers
+  locked_metadata:
+    tags:
+    - Education
+    - SAT
+    - 'subject_tree: Education/California/SAT'
+---
+metric:
+  name: sat_excellence_rate
+  description: SAT excellence rate = NumGE1500 / NumTstTakr, computed per record
+  type: measure_proxy
+  type_params:
+    measure: sat_excellence_rate
+  locked_metadata:
+    tags:
+    - Education
+    - SAT
+    - 'subject_tree: Education/California/SAT'
+---
+metric:
+  name: sat_total_score
+  description: SAT total score = AvgScrRead + AvgScrMath + AvgScrWrite
+  type: measure_proxy
+  type_params:
+    measure: sat_total_score
+  locked_metadata:
+    tags:
+    - Education
+    - SAT
+    - 'subject_tree: Education/California/SAT'

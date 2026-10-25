@@ -1,0 +1,36 @@
+data_source:
+  name: invoices
+  description: "One row per invoice (UCI Online Retail II, UK online gift retailer, 2009-12 to 2011-12). Invoice numbers starting with 'C' are cancellations. customer_id is NULL for guest purchases."
+  sql_table: invoices
+
+  identifiers:
+    - name: invoice
+      type: PRIMARY
+      expr: invoice
+      description: "Invoice number; prefix C marks a cancellation"
+    - name: customer
+      type: FOREIGN
+      expr: customer_id
+      description: "References customers.customer_id; NULL for guest purchases"
+
+  measures:
+    - name: invoice_count
+      agg: COUNT_DISTINCT
+      expr: invoice
+      description: "Number of distinct invoices (orders), cancellations included unless filtered"
+
+  dimensions:
+    - name: invoice_date
+      type: TIME
+      expr: invoice_date
+      description: "Invoice timestamp; the event time for point-in-time features"
+      type_params:
+        time_granularity: DAY
+    - name: invoice_country
+      type: CATEGORICAL
+      expr: country
+      description: "Country of the customer on this invoice"
+    - name: is_cancellation
+      type: CATEGORICAL
+      expr: "invoice LIKE 'C%'"
+      description: "True for cancellation invoices"

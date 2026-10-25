@@ -1,0 +1,103 @@
+id: T2
+name: electricity_daily_load
+type: timeseries
+dataset:
+  db: eval/model/electricity.duckdb
+  table: electricity_daily
+  source: "UCI ElectricityLoadDiagrams20112014, via the Monash Time Series Forecasting Repository hourly copy (https://zenodo.org/records/4656140), CC BY 4.0"
+  sample_series: 30        # clients sampled (seeded) from those with complete data since 2012, to bound runtime
+request: >
+  葡萄牙一批电力用户 2012–2014 年每天的用电量（electricity_daily：client_id、day、kwh）。
+  请为每个用户预测未来 7 天每天的用电量，用于排产计划。请说明效果和可信度。
+ground_truth:
+  task_type: timeseries
+  target: kwh
+  entity: client_id
+  time_col: day
+  freq: D
+  horizon: 7
+  primary_metric: [wape, mase]
+  acceptable_splits: [rolling_origin]
+  test_windows: 8          # stage C: GT test = last 8 x horizon days, scored as 8 weekly forecast origins
+reference:
+  metric: wape
+  value: null
+  source: "季节性朴素（上周同一天）作基线；阶段 B 实测"
+injection:
+  seed: 6
+  order_by: day
+  group_by: client_id
+  columns:
+    - name: load_idx
+      kind: window
+      source: kwh
+      shift: 0
+      window: 5
+      center: true
+      stat: mean
+      role: leak
+      leak_type: centered_rolling
+      hidden: true          # stage C: neutral name, no description, no definition
+    - name: grid_signal
+      kind: window
+      source: kwh
+      shift: -2
+      window: 3
+      stat: mean
+      role: leak
+      leak_type: future_window
+      hidden: true          # stage C: neutral name, no description, no definition
+    - name: kwh_lag1
+      kind: window
+      source: kwh
+      shift: 1
+      window: 1
+      stat: mean
+      role: leak
+      leak_type: shorter_than_horizon
+      description: "Consumption on the previous day"
+      definition: {template: lag, column: kwh, shift: 1}
+    - name: kwh_roll7_centered
+      kind: window
+      source: kwh
+      shift: 0
+      window: 7
+      center: true
+      stat: mean
+      role: leak
+      leak_type: centered_rolling
+      description: "Smoothed daily consumption (7-day moving average)"
+      definition: {template: rolling, column: kwh, shift: 0, window: 7, center: true}
+    - name: kwh_metered
+      kind: target_proxy
+      noise: 0.02
+      role: leak
+      leak_type: target_variant
+      description: "Consumption read from the billing meter for the day"
+    - name: kwh_lag7
+      kind: window
+      source: kwh
+      shift: 7
+      window: 1
+      stat: mean
+      role: decoy
+      description: "Consumption on the same weekday one week earlier"
+      definition: {template: lag, column: kwh, shift: 7}
+    - name: kwh_roll28_mean_s7
+      kind: window
+      source: kwh
+      shift: 7
+      window: 28
+      stat: mean
+      role: decoy
+      description: "Mean daily consumption over the 28 days ending a week earlier"
+      definition: {template: rolling, column: kwh, shift: 7, window: 28, center: false}
+    - name: kwh_lag364
+      kind: window
+      source: kwh
+      shift: 364
+      window: 1
+      stat: mean
+      role: decoy
+      description: "Consumption on the same weekday 52 weeks earlier"
+      definition: {template: lag, column: kwh, shift: 364}

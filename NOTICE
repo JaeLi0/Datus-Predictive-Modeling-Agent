@@ -1,0 +1,21 @@
+Datus Predictive Modeling Sub-Agent
+Copyright 2026 JaeLi0 (modifications)
+
+This product is a modified version of Datus-agent
+(https://github.com/Datus-ai/Datus-agent), developed by the Datus Team and
+licensed under the Apache License, Version 2.0.
+
+The Python package in this repository is named `dataengineer`. Modifications
+include, but are not limited to:
+  - New predictive modeling sub-agent `gen_model`
+    (dataengineer/agent/node/gen_model_agentic_node.py,
+     dataengineer/prompts/prompt_templates/gen_model_system_1.0.j2)
+  - New modeling tools (dataengineer/tools/model_tools/)
+  - New JOIN path tool (dataengineer/tools/func_tool/join_path_tools.py)
+  - Registration of the new sub-agent and tools in the node factory,
+    the main agent's delegation tool and the web UI
+  - Evaluation code and benchmark tasks (eval/), unit tests
+
+Datasets used in evaluation are not redistributed. They are available from
+the UCI Machine Learning Repository and the Monash Time Series Forecasting
+Repository under CC BY 4.0.

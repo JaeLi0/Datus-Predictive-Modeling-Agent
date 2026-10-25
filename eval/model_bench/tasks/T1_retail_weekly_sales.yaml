@@ -1,0 +1,121 @@
+id: T1
+name: retail_weekly_product_units
+type: timeseries
+dataset:
+  db: eval/model/online_retail_ii.duckdb
+  tables: [invoices, invoice_lines, products]
+  semantic_dir: eval/semantic/online_retail_ii
+  source: "UCI Online Retail II (https://archive.ics.uci.edu/dataset/502), CC BY 4.0"
+  # panel built from invoice_lines JOIN invoices by the benchmark; the agent receives it as table weekly_product_units
+  panel_sql: |
+    WITH top AS (
+      SELECT l.stock_code FROM invoice_lines l JOIN invoices i ON l.invoice = i.invoice
+      WHERE i.invoice NOT LIKE 'C%' AND l.quantity > 0 AND regexp_matches(l.stock_code, '^[0-9]{5}')
+      GROUP BY 1 ORDER BY SUM(l.quantity) DESC LIMIT 50),
+    weeks AS (SELECT UNNEST(generate_series(DATE '2009-11-30', DATE '2011-11-28', INTERVAL 7 DAY))::DATE AS week),
+    sales AS (
+      SELECT l.stock_code, DATE_TRUNC('week', i.invoice_date)::DATE AS week, SUM(l.quantity) AS units
+      FROM invoice_lines l JOIN invoices i ON l.invoice = i.invoice
+      WHERE i.invoice NOT LIKE 'C%' AND l.quantity > 0 AND l.stock_code IN (SELECT stock_code FROM top)
+      GROUP BY 1, 2)
+    SELECT t.stock_code, w.week, COALESCE(s.units, 0) AS units
+    FROM top t CROSS JOIN weeks w LEFT JOIN sales s ON s.stock_code = t.stock_code AND s.week = w.week
+    ORDER BY 1, 2
+request: >
+  英国线上礼品零售商销量最高的 50 个商品，按周汇总的销量（weekly_product_units：stock_code、week、units）。
+  请为每个商品预测未来 4 周每周的销量，用于补货。请说明效果和可信度。
+ground_truth:
+  task_type: timeseries
+  target: units
+  entity: stock_code
+  time_col: week
+  freq: W
+  horizon: 4
+  primary_metric: [wape, mase]
+  acceptable_splits: [rolling_origin]
+reference:
+  metric: wape
+  value: null
+  source: "季节性朴素（去年同周，数据只有约两年，首年回退为上周值）作基线；阶段 B 实测"
+injection:
+  seed: 5
+  order_by: week
+  group_by: stock_code
+  columns:
+    - name: units_idx
+      kind: window
+      source: units
+      shift: 0
+      window: 3
+      center: true
+      stat: mean
+      role: leak
+      leak_type: centered_rolling
+      hidden: true          # stage C: neutral name, no description, no definition
+    - name: demand_signal
+      kind: window
+      source: units
+      shift: -1
+      window: 2
+      stat: mean
+      role: leak
+      leak_type: future_window
+      hidden: true          # stage C: neutral name, no description, no definition
+    - name: units_lag1
+      kind: window
+      source: units
+      shift: 1
+      window: 1
+      stat: mean
+      role: leak
+      leak_type: shorter_than_horizon
+      description: "Units sold in the previous week"
+      definition: {template: lag, column: units, shift: 1}
+    - name: units_roll5_centered
+      kind: window
+      source: units
+      shift: 0
+      window: 5
+      center: true
+      stat: mean
+      role: leak
+      leak_type: centered_rolling
+      description: "Smoothed weekly units (5-week moving average)"
+      definition: {template: rolling, column: units, shift: 0, window: 5, center: true}
+    - name: units_next4w_mean
+      kind: window
+      source: units
+      shift: -4
+      window: 4
+      stat: mean
+      role: leak
+      leak_type: future_window
+      description: "Average weekly units over a 4-week window"
+      definition: {template: rolling, column: units, shift: -4, window: 4, center: false}
+    - name: units_lag4
+      kind: window
+      source: units
+      shift: 4
+      window: 1
+      stat: mean
+      role: decoy
+      description: "Units sold 4 weeks earlier"
+      definition: {template: lag, column: units, shift: 4}
+    - name: units_roll8_mean_s4
+      kind: window
+      source: units
+      shift: 4
+      window: 8
+      stat: mean
+      role: decoy
+      description: "Mean weekly units over the 8 weeks ending 4 weeks earlier"
+      definition: {template: rolling, column: units, shift: 4, window: 8, center: false}
+    - name: units_lag52
+      kind: window
+      source: units
+      shift: 52
+      window: 1
+      stat: mean
+      role: decoy
+      description: "Units sold in the same week last year"
+      definition: {template: lag, column: units, shift: 52}

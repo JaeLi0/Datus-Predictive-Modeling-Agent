@@ -1,0 +1,16 @@
+data_source:
+  name: products
+  description: "Product catalog derived from invoice lines: stock code and its most frequent description. Non-product codes such as POST, M, D, BANK CHARGES, AMAZONFEE are postage, manual adjustments and fees."
+  sql_table: products
+
+  identifiers:
+    - name: product
+      type: PRIMARY
+      expr: stock_code
+      description: "Stock code"
+
+  dimensions:
+    - name: product_description
+      type: CATEGORICAL
+      expr: description
+      description: "Most frequent product description for the stock code"

@@ -1,0 +1,88 @@
+id: C2
+name: credit_default
+type: binary
+dataset:
+  db: eval/model/credit_default.duckdb
+  table: credit_default
+  source: "UCI Default of Credit Card Clients (https://archive.ics.uci.edu/dataset/350), CC BY 4.0"
+  rows: 30000
+request: >
+  台湾某银行信用卡客户（2005 年 4–9 月账单与还款记录），预测客户下个月（2005 年 10 月）是否违约（default_next_month=1）。
+  违约客户占少数，请建模并说明在这种不平衡下怎么评价效果。
+ground_truth:
+  task_type: binary
+  target: default_next_month
+  positive_label: "1"
+  primary_metric: [pr_auc, roc_auc]
+  acceptable_splits: [group]
+  entity_after_injection: customer_id
+  must_drop: [id]
+reference:
+  metric: roc_auc
+  value: 0.78
+  source: "公开文献常见 AUC 约 0.77–0.79（GBDT 类模型）；PR-AUC 无统一公开值，阶段 B 用纯 FLAML 实测作参考"
+injection:
+  seed: 2
+  columns:
+    - name: risk_band
+      kind: target_proxy
+      overlap: 0.05
+      levels: {pos: [3, 4], neg: [1, 2]}
+      role: leak
+      leak_type: target_variant
+      hidden: true          # stage C: neutral name, no description, no definition
+    - name: cohort_index
+      kind: naive_te
+      key: age
+      role: leak
+      leak_type: naive_target_encoding
+      hidden: true          # stage C: neutral name, no description, no definition
+    - name: branch_code
+      kind: synthetic_key
+      n_groups: 3000
+      role: neutral
+      description: "Code of the branch that issued the card"
+    - name: collection_flag_score
+      kind: target_proxy
+      overlap: 0.03
+      role: leak
+      leak_type: target_variant
+      description: "Collections department risk score recorded on the account at month end"
+    - name: oct_pay_status
+      kind: target_proxy
+      overlap: 0.15
+      role: leak
+      leak_type: future_value
+      description: "Repayment status for October 2005 (same scale as pay_0)"
+    - name: branch_default_rate
+      kind: naive_te
+      key: branch_code
+      role: leak
+      leak_type: naive_target_encoding
+      description: "Default rate of the card's branch, computed on this dataset"
+    - name: customer_id
+      kind: duplicate_entity
+      share: 0.12
+      copies: 2
+      role: leak
+      leak_type: duplicate_entity
+      description: "Customer id; customers holding several cards appear once per card"
+    - name: utilization
+      kind: arith
+      left: bill_amt1
+      op: "/"
+      right: limit_bal
+      role: decoy
+      description: "September bill amount / credit limit"
+    - name: education_default_rate
+      kind: oof_te
+      key: education
+      role: decoy
+      description: "Out-of-fold default rate for the same education level (5-fold, smoothed)"
+    - name: pay_trend
+      kind: arith
+      left: pay_0
+      op: "-"
+      right: pay_2
+      role: decoy
+      description: "Change in repayment status September vs August"

@@ -1,0 +1,132 @@
+data_source:
+  name: frpm
+  description: "California Free or Reduced-Price Meal (FRPM) data per school, academic year 2014-2015. One row per school (CDSCode). Includes enrollment, free meal counts, FRPM eligibility percentages and charter information."
+  sql_table: frpm
+
+  identifiers:
+    - name: school
+      type: PRIMARY
+      expr: CDSCode
+      description: "14-digit County-District-School code; same key as schools.CDSCode"
+
+  measures:
+    - name: school_count
+      agg: SUM
+      expr: "1"
+      description: "Number of schools (rows) in the FRPM data"
+    - name: enrollment_k12
+      agg: SUM
+      expr: "`Enrollment (K-12)`"
+      description: "K-12 enrollment"
+    - name: free_meal_count_k12
+      agg: SUM
+      expr: "`Free Meal Count (K-12)`"
+      description: "Number of K-12 students eligible for free meals"
+    - name: frpm_count_k12
+      agg: SUM
+      expr: "`FRPM Count (K-12)`"
+      description: "Number of K-12 students eligible for free or reduced-price meals"
+    - name: eligible_free_rate_k12
+      agg: AVERAGE
+      expr: "CAST(`Free Meal Count (K-12)` AS REAL) / `Enrollment (K-12)`"
+      description: "Per-school eligible free rate for K-12 = Free Meal Count (K-12) / Enrollment (K-12)"
+    - name: eligible_free_rate_5_17
+      agg: AVERAGE
+      expr: "CAST(`Free Meal Count (Ages 5-17)` AS REAL) / `Enrollment (Ages 5-17)`"
+      description: "Per-school eligible free rate for ages 5-17 = Free Meal Count (Ages 5-17) / Enrollment (Ages 5-17)"
+
+  dimensions:
+    - name: county_name
+      type: CATEGORICAL
+      expr: "`County Name`"
+      description: "County name, e.g. Alameda, Los Angeles (no 'County' suffix)"
+    - name: district_name
+      type: CATEGORICAL
+      expr: "`District Name`"
+      description: "District name, e.g. Fresno County Office of Education"
+    - name: school_name
+      type: CATEGORICAL
+      expr: "`School Name`"
+      description: "School name"
+    - name: school_type
+      type: CATEGORICAL
+      expr: "`School Type`"
+      description: "School type, e.g. 'High Schools (Public)', 'Elementary Schools (Public)'"
+    - name: educational_option_type
+      type: CATEGORICAL
+      expr: "`Educational Option Type`"
+      description: "Educational option, e.g. Traditional, 'Continuation School', 'Community Day School'"
+    - name: charter_school_flag
+      type: CATEGORICAL
+      expr: "`Charter School (Y/N)`"
+      description: "Charter flag: 1 = charter school, 0 = not charter"
+    - name: charter_funding_type
+      type: CATEGORICAL
+      expr: "`Charter Funding Type`"
+      description: "Charter funding type: 'Directly funded', 'Locally funded', 'Not in CS funding model'"
+    - name: pct_eligible_frpm_k12
+      type: CATEGORICAL
+      expr: "`Percent (%) Eligible FRPM (K-12)`"
+      description: "Share of K-12 students eligible for FRPM, stored as a fraction between 0 and 1"
+---
+metric:
+  name: school_count
+  description: Number of schools in FRPM data
+  type: measure_proxy
+  type_params:
+    measure: school_count
+  locked_metadata:
+    tags:
+    - Education
+    - Schools
+    - 'subject_tree: Education/California/Schools'
+---
+metric:
+  name: enrollment_k12
+  description: Total K-12 enrollment
+  type: measure_proxy
+  type_params:
+    measure: enrollment_k12
+  locked_metadata:
+    tags:
+    - Education
+    - Schools
+    - 'subject_tree: Education/California/Schools'
+---
+metric:
+  name: frpm_count_k12
+  description: Total K-12 students eligible for free or reduced-price meals
+  type: measure_proxy
+  type_params:
+    measure: frpm_count_k12
+  locked_metadata:
+    tags:
+    - Education
+    - Schools
+    - 'subject_tree: Education/California/Schools'
+---
+metric:
+  name: eligible_free_rate_k12
+  description: Eligible free rate for K-12 = Free Meal Count (K-12) / Enrollment (K-12),
+    computed per school
+  type: measure_proxy
+  type_params:
+    measure: eligible_free_rate_k12
+  locked_metadata:
+    tags:
+    - Education
+    - Schools
+    - 'subject_tree: Education/California/Schools'
+---
+metric:
+  name: eligible_free_rate_5_17
+  description: Eligible free rate for ages 5-17 = Free Meal Count (Ages 5-17) / Enrollment
+    (Ages 5-17), computed per school
+  type: measure_proxy
+  type_params:
+    measure: eligible_free_rate_5_17
+  locked_metadata:
+    tags:
+    - Education
+    - Schools
+    - 'subject_tree: Education/California/Schools'

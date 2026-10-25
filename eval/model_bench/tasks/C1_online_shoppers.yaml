@@ -1,0 +1,89 @@
+id: C1
+name: online_shoppers_conversion
+type: binary
+dataset:
+  db: eval/model/online_shoppers.duckdb
+  table: online_shoppers
+  source: "UCI Online Shoppers Purchasing Intention (https://archive.ics.uci.edu/dataset/468), CC BY 4.0"
+  rows: 12330
+request: >
+  某电商网站一年内的 12330 个访问会话（一行一个会话），记录了浏览的页面类型和时长、跳出率、页面价值、月份、访客类型等。
+  请预测一个会话最终会不会下单（revenue=True 为正类），用于实时给高意向访客推优惠。下单会话占少数，请建模并说明效果和可信度。
+ground_truth:
+  task_type: binary
+  target: revenue
+  positive_label: "True"
+  primary_metric: [pr_auc, roc_auc]
+  acceptable_splits: [group]   # visitor_id repeats after injection
+  entity_after_injection: visitor_id
+  must_drop: []
+  gray_area: [page_values]     # Google Analytics page value is credited from later transactions; worth discussing, not scored
+reference:
+  metric: roc_auc
+  value: 0.93
+  source: "公开结果中 GBDT 类模型 AUC 约 0.92–0.93（page_values 是最强特征）；阶段 B 用纯 FLAML 在同一切分上实测复核"
+injection:
+  seed: 1
+  columns:
+    - name: engagement_score
+      kind: target_proxy
+      overlap: 0.04
+      role: leak
+      leak_type: target_variant
+      hidden: true          # stage C: neutral name, no description, no definition
+    - name: traffic_quality
+      kind: naive_te
+      key: traffic_type
+      role: leak
+      leak_type: naive_target_encoding
+      hidden: true          # stage C: neutral name, no description, no definition
+    - name: landing_page_id
+      kind: synthetic_key
+      n_groups: 1500
+      role: neutral
+      description: "Id of the page where the session started"
+    - name: order_total_usd
+      kind: target_proxy
+      overlap: 0.03
+      role: leak
+      leak_type: target_variant
+      description: "Order amount attributed to the session by the order system"
+    - name: checkout_page_views
+      kind: target_proxy
+      overlap: 0.15
+      levels: {pos: [1, 2, 3], neg: [0]}
+      role: leak
+      leak_type: post_outcome
+      description: "Number of checkout/payment-confirmation pages viewed in the session"
+    - name: landing_page_conversion_rate
+      kind: naive_te
+      key: landing_page_id
+      role: leak
+      leak_type: naive_target_encoding
+      description: "Conversion rate of sessions starting on the same landing page, computed on this dataset"
+    - name: visitor_id
+      kind: duplicate_entity
+      share: 0.12
+      copies: 2
+      role: leak
+      leak_type: duplicate_entity
+      description: "Visitor id; session logs were merged from two trackers and some sessions appear twice"
+    - name: traffic_type_conversion_rate
+      kind: oof_te
+      key: traffic_type
+      role: decoy
+      description: "Out-of-fold conversion rate for the same traffic source (5-fold, smoothed)"
+    - name: avg_product_page_seconds
+      kind: arith
+      left: product_related_duration
+      op: "/"
+      right: product_related
+      role: decoy
+      description: "product_related_duration / product_related"
+    - name: total_pages
+      kind: arith
+      left: product_related
+      op: "+"
+      right: administrative
+      role: decoy
+      description: "product_related + administrative page count"

@@ -1,0 +1,107 @@
+id: R2
+name: retail_customer_90d_value
+type: regression
+dataset:
+  db: eval/model/online_retail_ii.duckdb
+  tables: [invoices, invoice_lines, products, customers]
+  semantic_dir: eval/semantic/online_retail_ii
+  source: "UCI Online Retail II (https://archive.ics.uci.edu/dataset/502), CC BY 4.0"
+request: >
+  英国一家线上礼品零售商 2009-12 至 2011-12 的订单数据（发票、发票明细、商品、客户 4 张表）。
+  请预测每个老客户（预测时点前 365 天内下过单）在预测时点之后 90 天内的净消费额（GBP），用于营销预算分配。
+  预测时点用 2010-06-01、2010-09-01、2010-12-01、2011-03-01、2011-06-01、2011-09-01。特征库里有一些现成特征可以选用。
+ground_truth:
+  task_type: regression
+  target: revenue_next_90d
+  entity: customer_id
+  cutoffs: ["2010-06-01", "2010-09-01", "2010-12-01", "2011-03-01", "2011-06-01", "2011-09-01"]
+  horizon: 90
+  label: {measure: revenue, window_days: 90, entity: customer, time_dim: invoice_date}
+  population: {measure: invoice_count, window_days: 365, entity: customer, time_dim: invoice_date}
+  primary_metric: [rmse, mae]
+  acceptable_splits: [snapshot]
+reference:
+  metric: mae
+  value: null
+  source: "自建任务，无外部参考；阶段 B 用纯 FLAML 和朴素基线（过去 90 天消费额）作参考"
+injection:
+  seed: 4
+  # feature catalog shown to the agent: SQL definitions with a {cutoff} placeholder, materialized per snapshot
+  catalog:
+    - name: spend_score
+      role: leak
+      leak_type: future_window
+      hidden: true          # stage C: neutral name, no description, no definition
+      sql: |
+        SELECT i.customer_id AS entity_id, SUM(l.quantity * l.price) AS spend_score
+        FROM invoice_lines l JOIN invoices i ON l.invoice = i.invoice
+        WHERE i.invoice_date >= TIMESTAMP '{cutoff}' - INTERVAL 30 DAY AND i.invoice_date < TIMESTAMP '{cutoff}' + INTERVAL 30 DAY
+        GROUP BY 1
+    - name: activity_index
+      role: leak
+      leak_type: future_window
+      hidden: true          # stage C: neutral name, no description, no definition
+      sql: |
+        SELECT customer_id AS entity_id, COUNT(DISTINCT invoice) AS activity_index
+        FROM invoices
+        WHERE invoice NOT LIKE 'C%' AND invoice_date >= TIMESTAMP '{cutoff}' AND invoice_date < TIMESTAMP '{cutoff}' + INTERVAL 90 DAY
+        GROUP BY 1
+    - name: revenue_90d
+      role: decoy
+      description: "Net revenue in the 90 days before the cutoff"
+      sql: |
+        SELECT i.customer_id AS entity_id, SUM(l.quantity * l.price) AS revenue_90d
+        FROM invoice_lines l JOIN invoices i ON l.invoice = i.invoice
+        WHERE i.invoice_date >= TIMESTAMP '{cutoff}' - INTERVAL 90 DAY AND i.invoice_date < TIMESTAMP '{cutoff}'
+        GROUP BY 1
+    - name: revenue_365d
+      role: decoy
+      description: "Net revenue in the 365 days before the cutoff"
+      sql: |
+        SELECT i.customer_id AS entity_id, SUM(l.quantity * l.price) AS revenue_365d
+        FROM invoice_lines l JOIN invoices i ON l.invoice = i.invoice
+        WHERE i.invoice_date >= TIMESTAMP '{cutoff}' - INTERVAL 365 DAY AND i.invoice_date < TIMESTAMP '{cutoff}'
+        GROUP BY 1
+    - name: orders_365d
+      role: decoy
+      description: "Number of non-cancelled orders in the 365 days before the cutoff"
+      sql: |
+        SELECT customer_id AS entity_id, COUNT(DISTINCT invoice) AS orders_365d
+        FROM invoices
+        WHERE invoice NOT LIKE 'C%' AND invoice_date >= TIMESTAMP '{cutoff}' - INTERVAL 365 DAY
+          AND invoice_date < TIMESTAMP '{cutoff}'
+        GROUP BY 1
+    - name: days_since_last_order
+      role: decoy
+      description: "Days between the last order before the cutoff and the cutoff"
+      sql: |
+        SELECT customer_id AS entity_id, DATE_DIFF('day', MAX(invoice_date), TIMESTAMP '{cutoff}') AS days_since_last_order
+        FROM invoices
+        WHERE invoice_date < TIMESTAMP '{cutoff}'
+        GROUP BY 1
+    - name: recent_revenue_30d
+      role: leak
+      leak_type: future_window
+      description: "Revenue in the most recent 30-day window"
+      sql: |
+        SELECT i.customer_id AS entity_id, SUM(l.quantity * l.price) AS recent_revenue_30d
+        FROM invoice_lines l JOIN invoices i ON l.invoice = i.invoice
+        WHERE i.invoice_date >= TIMESTAMP '{cutoff}' AND i.invoice_date < TIMESTAMP '{cutoff}' + INTERVAL 30 DAY
+        GROUP BY 1
+    - name: lifetime_revenue
+      role: leak
+      leak_type: no_time_filter
+      description: "Customer lifetime net revenue"
+      sql: |
+        SELECT i.customer_id AS entity_id, SUM(l.quantity * l.price) AS lifetime_revenue
+        FROM invoice_lines l JOIN invoices i ON l.invoice = i.invoice
+        GROUP BY 1
+    - name: orders_to_date
+      role: leak
+      leak_type: wrong_as_of_date
+      description: "Orders placed to date (from the CRM snapshot)"
+      sql: |
+        SELECT customer_id AS entity_id, COUNT(DISTINCT invoice) AS orders_to_date
+        FROM invoices
+        WHERE invoice NOT LIKE 'C%' AND invoice_date <= TIMESTAMP '2011-12-09 23:59:59'
+        GROUP BY 1

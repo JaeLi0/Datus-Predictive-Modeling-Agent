@@ -1,0 +1,73 @@
+data_source:
+  name: bank_failures
+  description: "US bank failures, one row per failed bank: bank name, city, state (full state name), failure date, acquiring institution and assets in millions of USD."
+  sql_table: main.bank_failures
+
+  identifiers:
+    - name: bank_failure
+      type: PRIMARY
+      expr: c1
+      description: "Row id of the failure record"
+
+  measures:
+    - name: bank_failure_count
+      agg: SUM
+      expr: "1"
+      description: "Number of bank failures (one row per failed bank)"
+    - name: total_assets
+      agg: SUM
+      expr: '"Assets ($mil.)"'
+      description: "Total assets of failed banks, in millions of USD"
+    - name: max_assets
+      agg: MAX
+      expr: '"Assets ($mil.)"'
+      description: "Largest assets of a failed bank, in millions of USD"
+
+  dimensions:
+    - name: failure_date
+      type: TIME
+      expr: '"Date"'
+      description: "Date the bank failed"
+      type_params:
+        is_primary: true
+        time_granularity: DAY
+    - name: state
+      type: CATEGORICAL
+      expr: '"State"'
+      description: "Full state name, e.g. Georgia, California"
+    - name: city
+      type: CATEGORICAL
+      expr: '"City"'
+      description: "City"
+    - name: bank_name
+      type: CATEGORICAL
+      expr: '"Bank"'
+      description: "Name of the failed bank"
+    - name: acquired_by
+      type: CATEGORICAL
+      expr: '"Acquired by"'
+      description: "Acquiring institution; 'None (insured depositors paid directly)' when there was no acquirer"
+---
+metric:
+  name: bank_failure_count
+  description: Number of bank failures
+  type: measure_proxy
+  type_params:
+    measure: bank_failure_count
+  locked_metadata:
+    tags:
+    - Finance
+    - BankFailures
+    - 'subject_tree: Finance/Banking/BankFailures'
+---
+metric:
+  name: total_assets
+  description: Total assets of failed banks in millions of USD
+  type: measure_proxy
+  type_params:
+    measure: total_assets
+  locked_metadata:
+    tags:
+    - Finance
+    - BankFailures
+    - 'subject_tree: Finance/Banking/BankFailures'

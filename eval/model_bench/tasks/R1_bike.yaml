@@ -1,0 +1,96 @@
+id: R1
+name: bike_hourly_demand
+type: regression
+dataset:
+  db: eval/model/bike.duckdb
+  table: bike_hour
+  source: "UCI Bike Sharing (https://archive.ics.uci.edu/dataset/275), CC BY 4.0"
+  rows: 17379
+request: >
+  华盛顿 Capital Bikeshare 2011–2012 年每小时租车数据，预测每小时的总租车量 cnt，供第二天调度使用。
+  请建模并说明效果和可信度。
+ground_truth:
+  task_type: regression
+  target: cnt
+  time_col: ts
+  primary_metric: [rmse, mae]
+  acceptable_splits: [time, rolling_origin]
+  must_drop: [instant]
+  real_leaks: [casual, registered]   # casual + registered = cnt, present in the source data
+reference:
+  metric: rmse
+  value: null
+  source: "无统一公开参考；阶段 B 用纯 FLAML（同一时间切分）和季节性朴素（同一时刻上周）作参考"
+injection:
+  seed: 3
+  order_by: ts
+  columns:
+    - name: flow_index
+      kind: window
+      source: cnt
+      shift: -1
+      window: 3
+      stat: mean
+      role: leak
+      leak_type: future_window
+      hidden: true          # stage C: neutral name, no description, no definition
+    - name: load_factor
+      kind: target_proxy
+      noise: 0.05
+      role: leak
+      leak_type: target_variant
+      hidden: true          # stage C: neutral name, no description, no definition
+    - name: cnt_next3h_mean
+      kind: window
+      source: cnt
+      shift: -3
+      window: 3
+      stat: mean
+      role: leak
+      leak_type: future_window
+      description: "Mean hourly rentals over a 3-hour window"
+      definition: {template: rolling, column: cnt, shift: -3, window: 3, center: false}
+    - name: cnt_roll5_centered
+      kind: window
+      source: cnt
+      shift: 0
+      window: 5
+      center: true
+      stat: mean
+      role: leak
+      leak_type: centered_rolling
+      description: "Smoothed hourly rentals (5-hour moving average)"
+      definition: {template: rolling, column: cnt, shift: 0, window: 5, center: true}
+    - name: dock_checkouts
+      kind: target_proxy
+      noise: 0.03
+      role: leak
+      leak_type: target_variant
+      description: "Checkouts logged by the dock system in the hour"
+    - name: cnt_lag24
+      kind: window
+      source: cnt
+      shift: 24
+      window: 1
+      stat: mean
+      role: decoy
+      description: "Rentals at the same hour one day earlier"
+      definition: {template: lag, column: cnt, shift: 24}
+    - name: cnt_roll24_mean
+      kind: window
+      source: cnt
+      shift: 1
+      window: 24
+      stat: mean
+      role: decoy
+      description: "Mean hourly rentals over the previous 24 hours"
+      definition: {template: rolling, column: cnt, shift: 1, window: 24, center: false}
+    - name: cnt_lag168
+      kind: window
+      source: cnt
+      shift: 168
+      window: 1
+      stat: mean
+      role: decoy
+      description: "Rentals at the same hour one week earlier"
+      definition: {template: lag, column: cnt, shift: 168}

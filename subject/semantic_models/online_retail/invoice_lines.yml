@@ -1,0 +1,42 @@
+data_source:
+  name: invoice_lines
+  description: "One row per product line on an invoice. Quantity is negative on cancellations; price is the unit price in GBP."
+  sql_table: invoice_lines
+
+  identifiers:
+    - name: invoice_line
+      type: PRIMARY
+      expr: "invoice || '-' || CAST(line_no AS VARCHAR)"
+      description: "Invoice number + line number"
+    - name: invoice
+      type: FOREIGN
+      expr: invoice
+      description: "References invoices.invoice"
+    - name: product
+      type: FOREIGN
+      expr: stock_code
+      description: "References products.stock_code"
+
+  measures:
+    - name: revenue
+      agg: SUM
+      expr: "quantity * price"
+      description: "Line revenue in GBP = quantity * unit price (negative for cancellations)"
+    - name: units
+      agg: SUM
+      expr: quantity
+      description: "Units sold (negative for cancellations)"
+    - name: line_count
+      agg: COUNT
+      expr: line_no
+      description: "Number of invoice lines"
+    - name: distinct_products
+      agg: COUNT_DISTINCT
+      expr: stock_code
+      description: "Number of distinct products"
+
+  dimensions:
+    - name: unit_price
+      type: CATEGORICAL
+      expr: price
+      description: "Unit price in GBP"
