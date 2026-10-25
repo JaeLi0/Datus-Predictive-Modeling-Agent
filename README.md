@@ -1,6 +1,7 @@
 # Datus Predictive Modeling Sub-Agent
 
-基于开源数据 Agent 框架 [Datus-agent](https://github.com/Datus-ai/Datus-agent) 二次开发的**预测建模子 Agent（gen_model）**。用户用自然语言描述预测需求，例如“预测每个客户未来 90 天的消费金额”，gen_model 按标准建模流程完成任务定义、按时间点构造特征、泄漏检查、数据切分、模型训练与评估，并交付模型说明（model card）和可重跑的训练脚本。
+基于开源数据 Agent 框架 [Datus-agent](https://github.com/Datus-ai/Datus-agent) 二次开发的**预测建模子 Agent（gen_model）**。用户用自然语言描述预测需求，例如“预测每个客户未来 90 天的消费金额”，gen_model 按标准建模流程完成任务定义、按时间点构造特征、泄漏检查、数据切分、模型训练与评估，并交付模型说明（model card）和可重跑的训练脚本。网页端UI如下图所示：
+<img width="1070" height="651" alt="image" src="https://github.com/user-attachments/assets/39c1a35c-3352-43af-9a0e-e796a257deb7" />
 
 > 演示：gen_model 完成一次客户未来 90 天消费预测，见[运行示例](#运行示例r2-客户未来-90-天消费)。
 
